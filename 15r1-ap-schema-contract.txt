@@ -1,0 +1,369 @@
+FINATYX — 15R.1 AP SCHEMA CONTRACT
+Generated: 2026-10-08T11:50:12.4894136+00:00
+Schema: C:\Users\stanl\finatyx\prisma\schema.prisma
+
+============================================================
+MODEL FOUND: Supplier
+============================================================
+model Supplier {
+  id               String                @id @default(uuid()) @db.Uuid
+  tenantId         String                @db.Uuid
+  supplierCode     String                @db.VarChar(60)
+  name             String                @db.VarChar(200)
+  contactPerson    String?               @db.VarChar(160)
+  email            String?               @db.VarChar(320)
+  phone            String?               @db.VarChar(40)
+  taxNumber        String?               @db.VarChar(100)
+  paymentTermsDays Int                   @default(0)
+  currencyCode     String                @db.Char(3)
+  billingAddress   Json?
+  bankDetails      Json?
+  notes            String?
+  status           RecordStatus          @default(ACTIVE)
+  createdAt        DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime              @updatedAt @db.Timestamptz(6)
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  purchaseOrders   PurchaseOrder[]
+  supplierBills    SupplierBill[]
+  supplierPayments SupplierPayment[]
+  purchaseRequests PurchaseRequest[]
+  ledgerEntries    SupplierLedgerEntry[]
+  journalLines     JournalLine[]
+
+  @@unique([tenantId, supplierCode])
+  @@unique([tenantId, id])
+  @@index([tenantId, name])
+  @@map("suppliers")
+}
+
+============================================================
+MODEL NOT FOUND: Bill
+============================================================
+
+============================================================
+MODEL NOT FOUND: BillItem
+============================================================
+
+============================================================
+MODEL FOUND: SupplierPayment
+============================================================
+model SupplierPayment {
+  id                 String                      @id @default(uuid()) @db.Uuid
+  tenantId           String                      @db.Uuid
+  branchId           String                      @db.Uuid
+  supplierId         String                      @db.Uuid
+  paymentNumber      String                      @db.VarChar(80)
+  paymentDate        DateTime                    @db.Date
+  financialAccountId String                      @db.Uuid
+  currencyCode       String                      @db.Char(3)
+  exchangeRate       Decimal                     @default(1) @db.Decimal(20, 8)
+  amount             Decimal                     @db.Decimal(20, 4)
+  unallocatedAmount  Decimal                     @db.Decimal(20, 4)
+  reference          String?                     @db.VarChar(160)
+  status             PaymentStatus               @default(DRAFT)
+  postedAt           DateTime?                   @db.Timestamptz(6)
+  createdAt          DateTime                    @default(now()) @db.Timestamptz(6)
+  supplier           Supplier                    @relation(fields: [tenantId, supplierId], references: [tenantId, id], onDelete: Restrict)
+  allocations        SupplierPaymentAllocation[]
+
+  @@unique([tenantId, paymentNumber])
+  @@unique([tenantId, id])
+  @@index([tenantId, supplierId, paymentDate])
+  @@map("supplier_payments")
+}
+
+============================================================
+MODEL FOUND: SupplierPaymentAllocation
+============================================================
+model SupplierPaymentAllocation {
+  id                String          @id @default(uuid()) @db.Uuid
+  tenantId          String          @db.Uuid
+  supplierPaymentId String          @db.Uuid
+  supplierBillId    String          @db.Uuid
+  amount            Decimal         @db.Decimal(20, 4)
+  createdAt         DateTime        @default(now()) @db.Timestamptz(6)
+  payment           SupplierPayment @relation(fields: [tenantId, supplierPaymentId], references: [tenantId, id], onDelete: Restrict)
+  bill              SupplierBill    @relation(fields: [tenantId, supplierBillId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([supplierPaymentId, supplierBillId])
+  @@index([tenantId, supplierBillId])
+  @@map("supplier_payment_allocations")
+}
+
+============================================================
+MODEL FOUND: SupplierLedgerEntry
+============================================================
+model SupplierLedgerEntry {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @db.Uuid
+  supplierId      String   @db.Uuid
+  branchId        String?  @db.Uuid
+  transactionDate DateTime @db.Date
+  entryType       String   @db.VarChar(60)
+  referenceType   String   @db.VarChar(60)
+  referenceId     String   @db.Uuid
+  debit           Decimal  @default(0) @db.Decimal(20, 4)
+  credit          Decimal  @default(0) @db.Decimal(20, 4)
+  currencyCode    String   @db.Char(3)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  supplier        Supplier @relation(fields: [tenantId, supplierId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, supplierId, transactionDate])
+  @@index([tenantId, referenceType, referenceId])
+  @@map("supplier_ledger_entries")
+}
+
+============================================================
+MODEL FOUND: PurchaseOrder
+============================================================
+model PurchaseOrder {
+  id            String              @id @default(uuid()) @db.Uuid
+  tenantId      String              @db.Uuid
+  branchId      String              @db.Uuid
+  supplierId    String              @db.Uuid
+  poNumber      String              @db.VarChar(80)
+  orderDate     DateTime            @db.Date
+  expectedDate  DateTime?           @db.Date
+  currencyCode  String              @db.Char(3)
+  exchangeRate  Decimal             @default(1) @db.Decimal(20, 8)
+  subtotal      Decimal             @db.Decimal(20, 4)
+  discountTotal Decimal             @default(0) @db.Decimal(20, 4)
+  taxTotal      Decimal             @default(0) @db.Decimal(20, 4)
+  total         Decimal             @db.Decimal(20, 4)
+  status        PurchaseStatus      @default(DRAFT)
+  createdById   String              @db.Uuid
+  approvedById  String?             @db.Uuid
+  createdAt     DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime            @updatedAt @db.Timestamptz(6)
+  supplier      Supplier            @relation(fields: [tenantId, supplierId], references: [tenantId, id], onDelete: Restrict)
+  items         PurchaseOrderItem[]
+  receipts      GoodsReceipt[]
+  bills         SupplierBill[]
+
+  @@unique([tenantId, poNumber])
+  @@unique([tenantId, id])
+  @@index([tenantId, supplierId, status])
+  @@map("purchase_orders")
+}
+
+============================================================
+MODEL FOUND: PurchaseOrderItem
+============================================================
+model PurchaseOrderItem {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenantId        String        @db.Uuid
+  purchaseOrderId String        @db.Uuid
+  productId       String?       @db.Uuid
+  description     String
+  quantity        Decimal       @db.Decimal(20, 4)
+  unitCost        Decimal       @db.Decimal(20, 4)
+  taxRate         Decimal       @default(0) @db.Decimal(9, 6)
+  taxAmount       Decimal       @default(0) @db.Decimal(20, 4)
+  lineTotal       Decimal       @db.Decimal(20, 4)
+  purchaseOrder   PurchaseOrder @relation(fields: [tenantId, purchaseOrderId], references: [tenantId, id], onDelete: Cascade)
+  product         Product?      @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, purchaseOrderId])
+  @@map("purchase_order_items")
+}
+
+============================================================
+MODEL FOUND: FinancialAccount
+============================================================
+model FinancialAccount {
+  id                  String               @id @default(uuid()) @db.Uuid
+  tenantId            String               @db.Uuid
+  branchId            String?              @db.Uuid
+  name                String               @db.VarChar(160)
+  accountType         FinancialAccountType
+  currencyCode        String               @db.Char(3)
+  bankName            String?              @db.VarChar(160)
+  accountNumberMasked String?              @db.VarChar(80)
+  mobileMoneyProvider String?              @db.VarChar(80)
+  openingBalance      Decimal              @default(0) @db.Decimal(20, 4)
+  currentBalanceCache Decimal              @default(0) @db.Decimal(20, 4)
+  ledgerAccountId     String?              @db.Uuid
+  status              RecordStatus         @default(ACTIVE)
+  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  branch              Branch?              @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+  ledgerAccount       Account?             @relation(fields: [tenantId, ledgerAccountId], references: [tenantId, id], onDelete: Restrict)
+  payments            Payment[]
+  bankTransactions    BankTransaction[]
+  bankReconciliations BankReconciliation[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, accountType, status])
+  @@map("financial_accounts")
+}
+
+============================================================
+MODEL FOUND: SystemAccountMapping
+============================================================
+model SystemAccountMapping {
+  id        String               @id @default(uuid()) @db.Uuid
+  tenantId  String               @db.Uuid
+  purpose   SystemAccountPurpose
+  accountId String               @db.Uuid
+  createdAt DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime             @updatedAt @db.Timestamptz(6)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  account Account @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, purpose])
+  @@unique([tenantId, id])
+  @@index([tenantId, accountId])
+  @@map("system_account_mappings")
+}
+
+============================================================
+PURCHASING / AP ENUM DISCOVERY
+============================================================
+
+enum PaymentStatus {
+  DRAFT
+  PENDING
+  POSTED
+  FAILED
+  REVERSED
+  CANCELLED
+}
+
+enum PurchaseStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ORDERED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  BILLED
+  CANCELLED
+  CLOSED
+}
+
+enum StockMovementType {
+  OPENING
+  PURCHASE_RECEIPT
+  SALE
+  CUSTOMER_RETURN
+  SUPPLIER_RETURN
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  STOCK_COUNT
+  WRITE_OFF
+}
+
+enum SystemAccountPurpose {
+  ACCOUNTS_RECEIVABLE
+  ACCOUNTS_PAYABLE
+  SALES_REVENUE
+  SALES_RETURNS
+  SALES_DISCOUNTS
+  INVENTORY
+  COST_OF_GOODS_SOLD
+  INPUT_TAX
+  OUTPUT_TAX
+  TAX_PAYABLE
+  CASH
+  BANK
+  PAYROLL_PAYABLE
+  SALARY_EXPENSE
+  RETAINED_EARNINGS
+  FX_GAIN
+  FX_LOSS
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum FinancialAccountType {
+  CASH
+  BANK
+  MOBILE_MONEY
+  PETTY_CASH
+  PAYMENT_GATEWAY
+}
+
+enum ExpenseStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  POSTED
+  REJECTED
+  REVERSED
+  CANCELLED
+}
+
+enum BillingInterval {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum TaxType {
+  SALES
+  PURCHASE
+  WITHHOLDING
+  PAYROLL
+  OTHER
+}
+
+enum DocumentSequenceType {
+  QUOTATION
+  INVOICE
+  CREDIT_NOTE
+  RECEIPT
+  PURCHASE_REQUEST
+  PURCHASE_ORDER
+  GOODS_RECEIPT
+  SUPPLIER_BILL
+  SUPPLIER_PAYMENT
+  EXPENSE
+  JOURNAL
+  STOCK_TRANSFER
+  STOCK_COUNT
+  PAYROLL
+}
+
+enum DocumentStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  POSTED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+  VOID
+}
+
+============================================================
+SYSTEM ACCOUNT PURPOSE ENUM
+============================================================
+enum SystemAccountPurpose {
+  ACCOUNTS_RECEIVABLE
+  ACCOUNTS_PAYABLE
+  SALES_REVENUE
+  SALES_RETURNS
+  SALES_DISCOUNTS
+  INVENTORY
+  COST_OF_GOODS_SOLD
+  INPUT_TAX
+  OUTPUT_TAX
+  TAX_PAYABLE
+  CASH
+  BANK
+  PAYROLL_PAYABLE
+  SALARY_EXPENSE
+  RETAINED_EARNINGS
+  FX_GAIN
+  FX_LOSS
+}

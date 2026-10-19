@@ -1,0 +1,214 @@
+15R.11A SUPPLIER PAYMENT CONTRACT DISCOVERY
+==========================================
+
+Prisma schema SHA-256: 604512C87BE27997D497863707D33237B4CF3DF3DFD990F3103356F78AD2A3CB
+
+============================================================
+MODEL: SupplierPayment
+============================================================
+model SupplierPayment {
+  id                 String                      @id @default(uuid()) @db.Uuid
+  tenantId           String                      @db.Uuid
+  branchId           String                      @db.Uuid
+  supplierId         String                      @db.Uuid
+  paymentNumber      String                      @db.VarChar(80)
+  paymentDate        DateTime                    @db.Date
+  financialAccountId String                      @db.Uuid
+  currencyCode       String                      @db.Char(3)
+  exchangeRate       Decimal                     @default(1) @db.Decimal(20, 8)
+  amount             Decimal                     @db.Decimal(20, 4)
+  unallocatedAmount  Decimal                     @db.Decimal(20, 4)
+  reference          String?                     @db.VarChar(160)
+  status             PaymentStatus               @default(DRAFT)
+  postedAt           DateTime?                   @db.Timestamptz(6)
+  createdAt          DateTime                    @default(now()) @db.Timestamptz(6)
+  supplier           Supplier                    @relation(fields: [tenantId, supplierId], references: [tenantId, id], onDelete: Restrict)
+  allocations        SupplierPaymentAllocation[]
+
+  @@unique([tenantId, paymentNumber])
+  @@unique([tenantId, id])
+  @@index([tenantId, supplierId, paymentDate])
+  @@map("supplier_payments")
+}
+
+============================================================
+MODEL: SupplierPaymentAllocation
+============================================================
+model SupplierPaymentAllocation {
+  id                String          @id @default(uuid()) @db.Uuid
+  tenantId          String          @db.Uuid
+  supplierPaymentId String          @db.Uuid
+  supplierBillId    String          @db.Uuid
+  amount            Decimal         @db.Decimal(20, 4)
+  createdAt         DateTime        @default(now()) @db.Timestamptz(6)
+  payment           SupplierPayment @relation(fields: [tenantId, supplierPaymentId], references: [tenantId, id], onDelete: Restrict)
+  bill              SupplierBill    @relation(fields: [tenantId, supplierBillId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([supplierPaymentId, supplierBillId])
+  @@index([tenantId, supplierBillId])
+  @@map("supplier_payment_allocations")
+}
+
+============================================================
+MODEL: SupplierBill
+============================================================
+model SupplierBill {
+  id                    String                      @id @default(uuid()) @db.Uuid
+  tenantId              String                      @db.Uuid
+  branchId              String                      @db.Uuid
+  supplierId            String                      @db.Uuid
+  purchaseOrderId       String?                     @db.Uuid
+  billNumber            String                      @db.VarChar(80)
+  supplierInvoiceNumber String?                     @db.VarChar(120)
+  billDate              DateTime                    @db.Date
+  dueDate               DateTime                    @db.Date
+  currencyCode          String                      @db.Char(3)
+  exchangeRate          Decimal                     @default(1) @db.Decimal(20, 8)
+  subtotal              Decimal                     @db.Decimal(20, 4)
+  taxTotal              Decimal                     @default(0) @db.Decimal(20, 4)
+  total                 Decimal                     @db.Decimal(20, 4)
+  amountPaid            Decimal                     @default(0) @db.Decimal(20, 4)
+  balanceDue            Decimal                     @db.Decimal(20, 4)
+  status                DocumentStatus              @default(DRAFT)
+  postedAt              DateTime?                   @db.Timestamptz(6)
+  createdAt             DateTime                    @default(now()) @db.Timestamptz(6)
+  supplier              Supplier                    @relation(fields: [tenantId, supplierId], references: [tenantId, id], onDelete: Restrict)
+  purchaseOrder         PurchaseOrder?              @relation(fields: [tenantId, purchaseOrderId], references: [tenantId, id], onDelete: Restrict)
+  items                 SupplierBillItem[]
+  allocations           SupplierPaymentAllocation[]
+
+  @@unique([tenantId, billNumber])
+  @@unique([tenantId, id])
+  @@index([tenantId, supplierId, dueDate])
+  @@map("supplier_bills")
+}
+
+============================================================
+MODEL: SupplierLedgerEntry
+============================================================
+model SupplierLedgerEntry {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @db.Uuid
+  supplierId      String   @db.Uuid
+  branchId        String?  @db.Uuid
+  transactionDate DateTime @db.Date
+  entryType       String   @db.VarChar(60)
+  referenceType   String   @db.VarChar(60)
+  referenceId     String   @db.Uuid
+  debit           Decimal  @default(0) @db.Decimal(20, 4)
+  credit          Decimal  @default(0) @db.Decimal(20, 4)
+  currencyCode    String   @db.Char(3)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  supplier        Supplier @relation(fields: [tenantId, supplierId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, supplierId, transactionDate])
+  @@index([tenantId, referenceType, referenceId])
+  @@map("supplier_ledger_entries")
+}
+
+============================================================
+MODEL: FinancialAccount
+============================================================
+model FinancialAccount {
+  id                  String               @id @default(uuid()) @db.Uuid
+  tenantId            String               @db.Uuid
+  branchId            String?              @db.Uuid
+  name                String               @db.VarChar(160)
+  accountType         FinancialAccountType
+  currencyCode        String               @db.Char(3)
+  bankName            String?              @db.VarChar(160)
+  accountNumberMasked String?              @db.VarChar(80)
+  mobileMoneyProvider String?              @db.VarChar(80)
+  openingBalance      Decimal              @default(0) @db.Decimal(20, 4)
+  currentBalanceCache Decimal              @default(0) @db.Decimal(20, 4)
+  ledgerAccountId     String?              @db.Uuid
+  status              RecordStatus         @default(ACTIVE)
+  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  branch              Branch?              @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+  ledgerAccount       Account?             @relation(fields: [tenantId, ledgerAccountId], references: [tenantId, id], onDelete: Restrict)
+  payments            Payment[]
+  bankTransactions    BankTransaction[]
+  bankReconciliations BankReconciliation[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, accountType, status])
+  @@map("financial_accounts")
+}
+
+============================================================
+ENUM: PaymentStatus
+============================================================
+enum PaymentStatus {
+  DRAFT
+  PENDING
+  POSTED
+  FAILED
+  REVERSED
+  CANCELLED
+}
+
+============================================================
+ENUM: SupplierBillStatus
+============================================================
+NOT FOUND
+
+============================================================
+ENUM: FinancialAccountType
+============================================================
+enum FinancialAccountType {
+  CASH
+  BANK
+  MOBILE_MONEY
+  PETTY_CASH
+  PAYMENT_GATEWAY
+}
+
+============================================================
+ENUM: SupplierLedgerEntryType
+============================================================
+NOT FOUND
+
+============================================================
+SUPPLIER PAYMENT RELATED SCHEMA LINES
+============================================================
+enum PaymentStatus {
+  SUPPLIER_PAYMENT
+  supplierPayments SupplierPayment[]
+  status             PaymentStatus       @default(DRAFT)
+  allocations           SupplierPaymentAllocation[]
+model SupplierPayment {
+  status             PaymentStatus               @default(DRAFT)
+  allocations        SupplierPaymentAllocation[]
+  @@map("supplier_payments")
+model SupplierPaymentAllocation {
+  supplierPaymentId String          @db.Uuid
+  payment           SupplierPayment @relation(fields: [tenantId, supplierPaymentId], references: [tenantId, id], onDelete: Restrict)
+  @@unique([supplierPaymentId, supplierBillId])
+  @@map("supplier_payment_allocations")
+  status            PaymentStatus @default(PENDING)
+
+============================================================
+FINANCIAL ACCOUNT RELATED SCHEMA LINES
+============================================================
+enum FinancialAccountType {
+  financialAccounts     FinancialAccount[]
+  financialAccounts FinancialAccount[]
+  financialAccountId String?             @db.Uuid
+  financialAccount   FinancialAccount?   @relation(fields: [tenantId, financialAccountId], references: [tenantId, id], onDelete: Restrict)
+  financialAccountId String                      @db.Uuid
+model FinancialAccount {
+  accountType         FinancialAccountType
+  ledgerAccountId     String?              @db.Uuid
+  ledgerAccount       Account?             @relation(fields: [tenantId, ledgerAccountId], references: [tenantId, id], onDelete: Restrict)
+  financialAccounts     FinancialAccount[]
+  financialAccountId String?       @db.Uuid
+  financialAccountId   String                   @db.Uuid
+  account              FinancialAccount         @relation(fields: [tenantId, financialAccountId], references: [tenantId, id], onDelete: Restrict)
+  @@unique([tenantId, financialAccountId, externalId])
+  @@index([tenantId, financialAccountId, transactionDate])
+  financialAccountId      String                   @db.Uuid
+  account                 FinancialAccount         @relation(fields: [tenantId, financialAccountId], references: [tenantId, id], onDelete: Restrict)
+  @@index([tenantId, financialAccountId, periodEnd])
+  financialAccountId       String?        @db.Uuid

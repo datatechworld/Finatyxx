@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finatyx Authentication, Onboarding & Authorization Test</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 60px auto;
+      padding: 0 24px;
+      background: #f7f8fa;
+      color: #111827;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    h2 {
+      margin-top: 32px;
+    }
+
+    #status {
+      margin: 20px 0;
+      padding: 14px;
+      background: #f3f4f6;
+      border-radius: 8px;
+    }
+
+    .test-section {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .test-data {
+      background: #f3f4f6;
+      padding: 14px;
+      border-radius: 8px;
+      margin: 14px 0;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    .result {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #111827;
+      color: #f9fafb;
+      padding: 16px;
+      border-radius: 8px;
+      min-height: 60px;
+    }
+
+    button {
+      padding: 10px 16px;
+      margin-right: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    #user-button {
+      margin-bottom: 20px;
+    }
+
+    .warning {
+      padding: 12px 14px;
+      border: 1px solid #f59e0b;
+      background: #fffbeb;
+      border-radius: 8px;
+      margin: 14px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h1>Finatyx Authentication, Onboarding & Authorization Test</h1>
+
+    <p>
+      Temporary development page for testing Clerk authentication,
+      Finatyx identity resolution, first-business onboarding, and
+      application-level authorization.
+    </p>
+
+    <div id="status">
+      Loading Clerk...
+    </div>
+
+    <div id="sign-in"></div>
+
+    <div id="authenticated-area" hidden>
+      <div id="user-button"></div>
+
+      <div class="test-section">
+        <h2>1. Authentication & Identity</h2>
+
+        <p>
+          Verify that the current Clerk session resolves to the
+          corresponding internal Finatyx user.
+        </p>
+
+        <button id="test-api" type="button">
+          Test Protected API
+        </button>
+
+        <h3>Identity API Response</h3>
+        <pre id="api-result" class="result">No request made yet.</pre>
+      </div>
+
+      <div class="test-section">
+        <h2>2. First-Business Onboarding</h2>
+
+        <p>
+          This creates a disposable development tenant through the
+          authenticated Finatyx onboarding API.
+        </p>
+
+        <div class="warning">
+          The test business has already been created. Do not run this
+          onboarding test again unless we intentionally create a new
+          disposable slug.
+        </div>
+
+        <div class="test-data">
+          <strong>Legal Name:</strong> Finatyx Test Business Ltd<br />
+          <strong>Trading Name:</strong> Finatyx Test Business<br />
+          <strong>Slug:</strong> finatyx-test-business<br />
+          <strong>Country:</strong> GH<br />
+          <strong>Base Currency:</strong> GHS<br />
+          <strong>Timezone:</strong> Africa/Accra<br />
+          <strong>Head Office Code:</strong> HO
+        </div>
+
+        <button id="create-business" type="button">
+          Create Test Business
+        </button>
+
+        <h3>Onboarding API Response</h3>
+        <pre id="onboarding-result" class="result">No onboarding request made yet.</pre>
+      </div>
+
+      <div class="test-section">
+        <h2>3. HTTP Authorization</h2>
+
+        <p>
+          These tests verify that a Clerk-authenticated request must
+          also pass Finatyx tenant membership, RBAC permission, and
+          branch-access checks.
+        </p>
+
+        <div class="test-data">
+          <strong>Test Tenant:</strong>
+          9af89483-476a-4367-99b0-8cc15abc0011<br />
+
+          <strong>Head Office:</strong>
+          8b675c86-7c95-4da8-a0b8-37be06f3cf64<br />
+
+          <strong>Valid Permission:</strong>
+          sales.invoices.create<br />
+
+          <strong>Required Branch Access:</strong>
+          OPERATE
+        </div>
+
+        <button id="test-authorized" type="button">
+          Test Authorized Access
+        </button>
+
+        <button id="test-denied" type="button">
+          Test Denied Access
+        </button>
+
+        <h3>Authorized Request</h3>
+        <pre id="authorized-result" class="result">No authorized request made yet.</pre>
+
+        <h3>Denied Request</h3>
+        <pre id="denied-result" class="result">No denied request made yet.</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clerk prebuilt UI bundle must load before our authentication code -->
+  <script src="/auth-test/clerk-ui.js"></script>
+
+  <!-- Finatyx development authentication, onboarding, and authorization tests -->
+  <script type="module" src="/auth-test/auth-test.js"></script>
+</body>
+</html>

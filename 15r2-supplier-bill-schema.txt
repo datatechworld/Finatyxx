@@ -1,0 +1,104 @@
+FINATYX — 15R.2 SUPPLIER BILL EXACT CONTRACT
+
+============================================================
+MODEL FOUND: SupplierBill
+============================================================
+model SupplierBill {
+  id                    String                      @id @default(uuid()) @db.Uuid
+  tenantId              String                      @db.Uuid
+  branchId              String                      @db.Uuid
+  supplierId            String                      @db.Uuid
+  purchaseOrderId       String?                     @db.Uuid
+  billNumber            String                      @db.VarChar(80)
+  supplierInvoiceNumber String?                     @db.VarChar(120)
+  billDate              DateTime                    @db.Date
+  dueDate               DateTime                    @db.Date
+  currencyCode          String                      @db.Char(3)
+  exchangeRate          Decimal                     @default(1) @db.Decimal(20, 8)
+  subtotal              Decimal                     @db.Decimal(20, 4)
+  taxTotal              Decimal                     @default(0) @db.Decimal(20, 4)
+  total                 Decimal                     @db.Decimal(20, 4)
+  amountPaid            Decimal                     @default(0) @db.Decimal(20, 4)
+  balanceDue            Decimal                     @db.Decimal(20, 4)
+  status                DocumentStatus              @default(DRAFT)
+  postedAt              DateTime?                   @db.Timestamptz(6)
+  createdAt             DateTime                    @default(now()) @db.Timestamptz(6)
+  supplier              Supplier                    @relation(fields: [tenantId, supplierId], references: [tenantId, id], onDelete: Restrict)
+  purchaseOrder         PurchaseOrder?              @relation(fields: [tenantId, purchaseOrderId], references: [tenantId, id], onDelete: Restrict)
+  items                 SupplierBillItem[]
+  allocations           SupplierPaymentAllocation[]
+
+  @@unique([tenantId, billNumber])
+  @@unique([tenantId, id])
+  @@index([tenantId, supplierId, dueDate])
+  @@map("supplier_bills")
+}
+
+============================================================
+MODEL FOUND: SupplierBillItem
+============================================================
+model SupplierBillItem {
+  id             String       @id @default(uuid()) @db.Uuid
+  tenantId       String       @db.Uuid
+  supplierBillId String       @db.Uuid
+  productId      String?      @db.Uuid
+  description    String
+  quantity       Decimal      @db.Decimal(20, 4)
+  unitCost       Decimal      @db.Decimal(20, 4)
+  taxRate        Decimal      @default(0) @db.Decimal(9, 6)
+  taxAmount      Decimal      @default(0) @db.Decimal(20, 4)
+  lineTotal      Decimal      @db.Decimal(20, 4)
+  supplierBill   SupplierBill @relation(fields: [tenantId, supplierBillId], references: [tenantId, id], onDelete: Restrict)
+  product        Product?     @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, supplierBillId])
+  @@map("supplier_bill_items")
+}
+
+============================================================
+MODEL FOUND: Expense
+============================================================
+model Expense {
+  id                 String        @id @default(uuid()) @db.Uuid
+  tenantId           String        @db.Uuid
+  branchId           String        @db.Uuid
+  expenseNumber      String        @db.VarChar(80)
+  expenseDate        DateTime      @db.Date
+  description        String
+  subtotal           Decimal       @db.Decimal(20, 4)
+  taxAmount          Decimal       @default(0) @db.Decimal(20, 4)
+  total              Decimal       @db.Decimal(20, 4)
+  currencyCode       String        @db.Char(3)
+  exchangeRate       Decimal       @default(1) @db.Decimal(20, 8)
+  financialAccountId String?       @db.Uuid
+  expenseAccountId   String        @db.Uuid
+  status             ExpenseStatus @default(DRAFT)
+  approvedById       String?       @db.Uuid
+  postedAt           DateTime?     @db.Timestamptz(6)
+  createdById        String        @db.Uuid
+  createdAt          DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime      @updatedAt @db.Timestamptz(6)
+
+  @@unique([tenantId, expenseNumber])
+  @@unique([tenantId, id])
+  @@index([tenantId, branchId, expenseDate])
+  @@index([tenantId, status])
+  @@map("expenses")
+}
+
+============================================================
+MODEL FOUND: ExpenseCategory
+============================================================
+model ExpenseCategory {
+  id               String       @id @default(uuid()) @db.Uuid
+  tenantId         String       @db.Uuid
+  name             String       @db.VarChar(160)
+  code             String       @db.VarChar(60)
+  defaultAccountId String?      @db.Uuid
+  status           RecordStatus @default(ACTIVE)
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, id])
+  @@map("expense_categories")
+}
+
